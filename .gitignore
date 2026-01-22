@@ -1,0 +1,13 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+_extensions/
+iterators_iterables_and_functional_programming_in_python_files/
+iterators_iterables_and_functional_programming_in_python.html

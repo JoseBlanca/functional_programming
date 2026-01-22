@@ -1,0 +1,21 @@
+---
+title: "Iterators, iterables and functional programming in Python"
+format:
+  live-html
+jupyter: python3
+---
+
+# Iterators, iterables and functional programming in Python
+
+For a demonstration of a line plot on a polar axis, see @fig-polar.
+
+```{pyodide}
+
+numbers = list(range(1000))
+
+accum_sum = 0
+for num in numbers:
+    accum_sum += num**2
+print(accum_sum)
+
+```
