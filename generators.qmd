@@ -1,0 +1,189 @@
+---
+title: "Generators"
+format:
+  live-html
+jupyter: python3
+---
+
+## Generators
+
+In Python we can create our own iterators and generators classes implementing the required methods, but there is a very simple way of creating new custom iterators, the generator way.
+
+```{pyodide}
+
+def generate_squares(up_to:int):
+    for i in range(up_to):
+        yield i**2
+
+print(list(generate_squares(10)))
+
+```
+
+A generator looks just like a function, but instead of `return` it uses `yield`.
+
+Generators are not functions, they are iterator objects, so, like any other generator, they will be consumed.
+
+```{pyodide}
+
+def generate_squares(up_to:int):
+    for i in range(up_to):
+        yield i**2
+
+squares = generate_squares(11)
+
+print(squares)
+print("sum1:", sum(squares))
+print(squares)
+print("sum2:", sum(squares))
+
+print("No elements left")
+for x in squares:
+    print(x)
+```
+
+## Generators are not functions
+
+Which would be the result of running the following code?
+
+```{pyodide}
+
+def generate_squares_funct(up_to:int):
+    for i in range(up_to):
+        return i**2
+
+print(generate_squares_funct(10))
+
+# Now the generator
+def generate_squares_gen(up_to:int):
+    for i in range(up_to):
+        yield i**2
+
+print(generate_squares_gen(10))
+print(list(generate_squares_gen(10)))
+```
+
+Generators might look like functions, but they are not.
+When we call a function we get a result back a soon as the function reaches the first `return` and that's it.
+If we call the function again, the function execution will start from the top all over again.
+Generators have a very different behavior. When we call them they create a generator prepared to yield one element after another when we ask for it.
+Every time that we enter the generator it resumes the execution where it left.
+
+```{pyodide}
+def a_generator():
+    print("fist time")
+    yield 1
+    print("second time")
+    yield 2
+    print("third time")
+    yield 3
+
+iterator = a_generator()
+print(next(iterator))
+print(next(iterator))
+print(next(iterator))
+```
+
+The generator will raise a StopIteration if it reaches a return.
+
+```{pyodide}
+def a_generator():
+    return
+    print("Nothing else will be yielded")
+    yield 1
+    yield 2
+    yield 3
+
+iterator = a_generator()
+print(next(iterator))
+```
+
+`yield` produces a value and pauses execution while `return` ends the generator and raises StopIteration.
+
+## Generators instead of lists
+
+One very common use case, when you don't need to have all members materialized in memory at the same time, is to create generators instead of list.
+For instance, we could create lists of squares:
+
+```{pyodide}
+def calc_squares(upto:int):
+    squares = []
+    for i in range(upto):
+        squares.append(i**2)
+    return squares
+
+squares = calc_squares(100)
+print(sum(squares))
+```
+
+We have created an empty list, we have appended the squares one by one and, finally, we have returned the whole list.
+If we don't need to hold all elements in memory at once we could do the same with a generator.
+
+```{pyodide}
+def calc_squares(upto:int):
+    for i in range(upto):
+        yield i**2
+
+squares = calc_squares(100)
+print(sum(squares))
+```
+
+By the way, the generator option uses much less memory and can be also faster.
+In my computer calculating the sum of the first 100.000 squares one thousand times required 3.2 seconds when using lists and 2.8 when using generators.
+
+## Generator expressions
+
+Generators are easy to create, but generator expressions are even simpler.
+
+```{pyodide}
+squares = (i**2 for i in range(11))
+print(sum(squares))
+
+squares = (i**2 for i in range(11))
+print(list(squares))
+```
+
+Generator expressions have exactly the same syntax as the list comprehensions but instead of square brackets they use parentheses.
+
+Generators are easy to create, but generator expressions are even simpler.
+
+```{pyodide}
+# The generator
+squares = (i**2 for i in range(10))
+print(squares)
+
+# The list comprehension
+squares = [i**2 for i in range(10)]
+print(squares)
+```
+
+## Generators are iterators
+
+Generators are iterators, so they have the strengths, but also the limitations of the iterators.
+
+Generators have no length.
+
+```{pyodide}
+squares = (i**2 for i in range(10))
+print(len(squares))
+```
+
+Generators are consumed.
+
+```{pyodide}
+squares = (i**2 for i in range(10))
+print(sum(squares))
+print(sum(squares))
+```
+
+You have to be careful if you want to create a numpy array out of it.
+
+```{pyodide}
+import numpy
+
+squares = (i**2 for i in range(10))
+# the following line won't work as you expect
+print(numpy.array(squares))
+
+# use fromiter
+print(numpy.fromiter(squares, dtype=numpy.int8))
+```
