@@ -11,3 +11,5 @@ wheels/
 _extensions/
 iterators_iterables_and_functional_programming_in_python_files/
 iterators_iterables_and_functional_programming_in_python.html
+generators_files/
+generators.html
