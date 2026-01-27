@@ -1,5 +1,5 @@
 ---
-title: "Iterators, iterables and functional programming in Python"
+title: "Iterators and iterables"
 format:
   live-html
 jupyter: python3
@@ -7,8 +7,18 @@ jupyter: python3
 
 ## Iterables
 
-An [iterable](https://docs.python.org/3/glossary.html#term-iterable) is an object capable of returning its members one at a time.
-Examples of iterables are: list, tuple, str, dict, set, or range.
+An [iterable](https://docs.python.org/3/glossary.html#term-iterable) is an object that can return an [iterator](https://docs.python.org/3/glossary.html#term-iterator) and iterators can be iterated over, one item at a time.
+For example, a list is an iterable, we can iterate over its elements one at a time.
+Other examples of Python iterables are: tuple, str, dict, set, or range.
+
+```{mermaid}
+flowchart LR
+    A["x = [1, 2, 3]"] -->|"iter()"| B["Iterator"]
+    B -->|"next()"| 1
+    B -->|"next()"| 2
+    B -->|"next()"| 3
+    B -->|"next()"| StopIteration
+```
 
 For instance, let's imagine that we want to sum the squares from 1 to 10.
 We could create a list and then we could iterate over it using a `for` loop.
@@ -212,7 +222,7 @@ You can think of an iterable as a book that can be read many times, while the it
 In technical terms, as we have already shown iterables are objects from which we can create iterators, using the `__iter__` special method, while the iterators will be, once created, the objects that will be used to do the iteration.
 Remember our IntiniteRandomInts iterator implementation, it just has an `__iter__` method, that's the only thing an iterable needs.
 
-### iter and next
+### The iterator protocol: iter and next
 
 While the defining characteristic of an iterable is the `__iter__` method, the capability of creating iterators, the crucial trait of the iterable is that we can ask for the next item using the [next](https://docs.python.org/3/library/functions.html#next) function.
 Any object capable of returning its members one at a time when we request them using the [next](https://docs.python.org/3/library/functions.html#next) function is an [iterator](https://docs.python.org/3/glossary.html#term-iterator).
@@ -485,3 +495,13 @@ print(next(iter2))
 print(next(iter2))
 print(next(iter1))
 ```
+
+## itertools and more-itertools
+
+Once you start using iterables and iterators you should take a look at the [itertools](https://docs.python.org/3/library/itertools.html) standard library module.
+In there you will find many tools to get the most of these tools.
+
+## Other resources
+
+- A Real Python tutorial on [iterators and iterables](https://realpython.com/python-iterators-iterables/).
+- The [itertool](https://docs.python.org/3/library/itertools.html) standard library module.

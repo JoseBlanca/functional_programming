@@ -20,8 +20,7 @@ print(list(generate_squares(10)))
 ```
 
 A generator looks just like a function, but instead of `return` it uses `yield`.
-
-Generators are not functions, they are iterator objects, so, like any other generator, they will be consumed.
+A generator function returns a generator iterator, not a value, and, like any other generator they can be iterated over until they are consumed.
 
 ```{pyodide}
 
@@ -99,7 +98,7 @@ print(next(iterator))
 
 `yield` produces a value and pauses execution while `return` ends the generator and raises StopIteration.
 
-## Generators instead of lists
+## Generators instead of container types
 
 One very common use case, when you don't need to have all members materialized in memory at the same time, is to create generators instead of list.
 For instance, we could create lists of squares:
