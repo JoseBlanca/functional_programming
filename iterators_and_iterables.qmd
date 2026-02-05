@@ -5,10 +5,142 @@ format:
 jupyter: python3
 ---
 
+## Reading a large file
+
+In bioinformatics, VCF files ([Variant Call Format](https://samtools.github.io/hts-specs/VCFv4.5.pdf)) are everywhere: variant calling, genotyping, population genetics… and they can be huge (millions of variants).
+
+We could create a Python script to count the number of SNPs and to list the chromosomes.
+
+```{pyodide}
+import io
+
+def read_vcf(vcf_fhand):
+    snps = []
+    for line in vcf_fhand:
+        if line.startswith('#'):
+            continue
+        snp = line.split("\t")
+        chrom = snp[0]
+        pos = snp[1]
+        snps.append((chrom, pos))
+    return snps
+
+vcf_text = """##fileformat=VCFv4.2
+##source=Example
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
+20\t14370\trs6054257\tG\tA\t29\tPASS\t.
+20\t17330\t.\tT\tA\t3\tq10\t.
+20\t1110696\trs6040355\tA\tG,T\t67\tPASS\t.
+20\t1230237\t.\tT\t.\t47\tPASS\t.
+X\t10\trsTest\tC\tT\t50\tPASS\t.
+"""
+
+vcf_fhand = io.StringIO(vcf_text)
+snps = read_vcf(vcf_fhand)
+print('Num. SNPs:', len(snps))
+print('Chromosomes:', sorted(set([snp[0] for snp in snps])))
+```
+
+This has worked just fine, but what would happen if the file would had millions of lines?
+
+```{pyodide}
+import io
+
+def read_vcf(vcf_fhand):
+    snps = []
+    for line in vcf_fhand:
+        if line.startswith('#'):
+            continue
+        snp = line.split("\t")
+        chrom = snp[0]
+        pos = snp[1]
+        snps.append((chrom, pos))
+    return snps
+
+vcf_text = """##fileformat=VCFv4.2
+##source=Example
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
+"""
+
+# we won't really use millions of lines because it would consume all your system memory
+number_of_snps = 10_000
+vcf_text += "20\t14370\trs6054257\tG\tA\t29\tPASS\t.\n" * number_of_snps
+
+vcf_fhand = io.StringIO(vcf_text)
+snps = read_vcf(vcf_fhand)
+print('Num. SNPs:', len(snps))
+print('Chromosomes:', sorted(set([snp[0] for snp in snps])))
+```
+
+Even with 10,000 SNPs this is fine, but notice what is happening: we are building a Python list of length 10,000 and storing 10,000 tuples. If this were 10 million lines, that list could take a lot of memory.
+We can't read millions of SNPs in memory, we would run out of memory, and that it exactly what the snps list is trying to do in this code.
+
+But… do we really need to store every SNP to answer simple questions like:
+
+- How many SNP records are there?
+- Which chromosomes appear in the file?
+
+No. We can compute those answers while streaming the file, without keeping all SNPs.
+
+Now we’ll write a function that does not build a list. It reads the VCF line by line and only keeps:
+
+- a counter (count)
+- a set of chromosomes (chroms)
+
+That’s a small amount of memory, no matter how many lines the VCF has.
+
+```{pyodide}
+import io
+
+def count_snps_and_chromosomes(vcf_fhand):
+    count = 0
+    chroms = set()
+
+    for line in vcf_fhand:
+        if line.startswith("#"):
+            continue
+        fields = line.rstrip("\n").split("\t")
+        chrom = fields[0]
+
+        count += 1
+        chroms.add(chrom)
+
+    return count, chroms
+
+vcf_text = """##fileformat=VCFv4.2
+##source=Example
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
+"""
+
+number_of_snps = 10_000
+vcf_text += "20\t14370\trs6054257\tG\tA\t29\tPASS\t.\n" * number_of_snps
+
+vcf_fhand = io.StringIO(vcf_text)
+count, chroms = count_snps_and_chromosomes(vcf_fhand)
+
+print("Num. SNPs:", count)
+print("Chromosomes:", sorted(chroms))
+```
+
+With this approach at no point we have stored all the SNPs in a list.
+(In this case we have stored all lines in the io.StringIO file-like object, but if you would read a standard file from your disk Python would never load the whole big file in memory all at once.)
+
+A file is something you can loop over:
+
+```
+for line in vcf_fhand:
+    ...
+```
+
+The big idea is that the for loop gets one line at a time, so you don't need more in memory.
+
+- If you would try to build a list, you would keep everything in memory.
+- If you create a stream of data, you only keep in memory what you need (counters, sets, summaries).
+
 ## Iterables
 
-An [iterable](https://docs.python.org/3/glossary.html#term-iterable) is an object that can return an [iterator](https://docs.python.org/3/glossary.html#term-iterator) and iterators can be iterated over, one item at a time.
-For example, a list is an iterable, we can iterate over its elements one at a time.
+An [iterable](https://docs.python.org/3/glossary.html#term-iterable) is an object that can return an [iterator](https://docs.python.org/3/glossary.html#term-iterator) (something that can be looped over, iterated over) and iterators are the objectes that are iterated over, one item at a time (the object doing the looping).
+For example, a list is an iterable and we can iterate over its elements one at a time.
 Other examples of Python iterables are: tuple, str, dict, set, or range.
 
 ```{mermaid}
@@ -24,7 +156,6 @@ For instance, let's imagine that we want to sum the squares from 1 to 10.
 We could create a list and then we could iterate over it using a `for` loop.
 
 ```{pyodide}
-
 numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 accum_sum = 0
@@ -35,31 +166,29 @@ print(accum_sum)
 ```
 
 A list is an iterable because we can get its elements one at a time.
-But the list has extra capabilities, the main one being that it holds its members in memory, and that is not required to be an iterable. In fact, the we don't need the members of the iterable to exist before we ask for them.
+But the list has extra capabilities, the main one being that it holds its members in memory, and that is not required to be an iterable.
+
+In fact, the we don't need the members of the iterable to exist before we ask for them.
 For instance, [range](https://docs.python.org/3/library/functions.html#func-range) is also an iterable and it will *create the elements when we ask for them*.
-We could use range in the sum of squares example.
+We could use `range` in the sum of squares example.
 
 ```{pyodide}
-
 numbers = range(1, 1001)
 
 accum_sum = 0
 for num in numbers:
     accum_sum += num**2
 print(accum_sum)
-
 ```
 
 In the first approach we created a list, but not in the second one.
 
 ```{pyodide}
-
 numbers1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 numbers2 = range(1, 11)
 
 print(numbers1)
 print(numbers2)
-
 ```
 
 ### The lazy advantage
@@ -68,16 +197,15 @@ An iterable could be lazy, we don't need to have all the data in memory, or even
 The fundamental difference between a `range`and a `list` is explained in the Python [documentation](https://docs.python.org/3/library/stdtypes.html#typesseq-range):
 
 > The advantage of the range type over a regular list or tuple is that a range object will always take the same (small) amount of memory, no matter the size of the range it represents (as it only stores the start, stop and step values, calculating individual items and subranges as needed).
-
 Ranges are lazy, they build the numbers when they are needed but not before.
-One of the advantages of the iterables is that they can be used to analyze data that can not be hold in memory all at once, moreover, it allows to analyze that data having only one item at a time in memory.
+
+One of the advantages of the iterables is that they can be used to analyze data that can not be hold in memory all at once, moreover, it allows us to analyze that data having only one item at a time in memory.
 We could create a range capable of returning many numbers and it would cost almost no time and memory.
 
 ```{pyodide}
 numbers = range(1_000_000_000)
 
 print(numbers)
-
 ```
 
 However, if you would try the transform this `range` into a list you would run out of memory (don't run the next cell.)
@@ -86,145 +214,26 @@ However, if you would try the transform this `range` into a list you would run o
 numbers = range(1_000_000_000)
 print(numbers)
 
-numbers = list(numbers)
-print(numbers)
-
+#numbers = list(numbers)
+#print(numbers)
 ```
 
 So in order to process this data we don't need to materialize all the data in memory in order to iterate over it, we just need to be able to iterate over it, so we can skip the memory intensive part.
 
-### Iterables just need to be iterable, nothing else
-
-Lists or ranges have extra capabilities that go further than the iterable requirement, to be able to be iterated over, but these are not required.
-For instance, lists have [random access](https://en.wikipedia.org/wiki/Random_access), we can ask for any of its members at any time.
-
-```{pyodide}
-numbers = [1, 2, 3, 4, 5]
-print(numbers[3])
-print(numbers[0])
-print(numbers[4])
-```
-
-But that's not a requirement to be an iterable.
-For instance, [sets](https://docs.python.org/3/tutorial/datastructures.html#sets) have no random access, but they are iterable.
-
-```{pyodide}
-numbers = {1, 2, 3, 4, 5}
-print(numbers[3])
-
-for i in numbers:
-    print(i)
-```
-
-Also, iterables do not need to have a stable order.
-
-```{pyodide}
-numbers1 = {1, 2, 3, 4, 5}
-numbers2 = {5, 2, 3, 1, 4}
-print(numbers1 == numbers2)
-```
-
-Iterables do not even need to have a finite number of elements or even length.
-Let's create an iterable that produces random integers for ever.
-
-```{pyodide}
-import random
-
-class InfiniteRandomInts:
-    def __iter__(self):
-        while True:
-            yield random.randint(0, 9)
-
-rng = InfiniteRandomInts()
-
-for x in rng:
-    print(x)
-    if x == 7:
-        break
-```
-
-`InfiniteRandomInts`is iterable because we have implemented the [`__iter__`](https://docs.python.org/3/reference/datamodel.html#object.__iter__) magic method, and that's all an iterable need to be iterable.
-
-If you ever need to represent more constrained behaviors, like the behavior of an object with stable order, random access and a length you have other [protocols](https://realpython.com/python-protocol/) available, like the [sequence](https://docs.python.org/3/glossary.html#term-sequence).
-
-### Python is fond of iterables
-
-Many Python classes are iterable, like list, [tuple](https://docs.python.org/3/tutorial/datastructures.html#tuples-and-sequences), [set](https://docs.python.org/3/tutorial/datastructures.html#sets), and [frozenset](https://docs.python.org/3/library/stdtypes.html#frozenset), or range.
-
-Dictionaries are also iterable, buy default you will get their keys, but you can also iterate over its values, and items.
-
-```{pyodide}
-d = {'name': 'Arthur', 'surname': 'Dent'}
-print(list(d))
-print(d.keys())
-print(d.values())
-print(d.items())
-```
-
-Strings are also iterable over their characters.
-
-```{pyodide}
-vowels = 'aeiou'
-print(list(vowels))
-```
-
-### The iterable users
-
-`for` is not the only user of this iterable to iterator trick, many other Python functions do, like: [zip](https://docs.python.org/3/library/functions.html#zip), [sum](https://docs.python.org/3/library/functions.html#sum), [max](https://docs.python.org/3/library/functions.html#max), [min](https://docs.python.org/3/library/functions.html#min), [any](https://docs.python.org/3/library/functions.html#any), [all](https://docs.python.org/3/library/functions.html#all), [enumerate](https://docs.python.org/3/library/functions.html#enumerate),[map](https://docs.python.org/3/library/functions.html#map), [list](https://docs.python.org/3/library/functions.html#func-list), etc.
-
-```{pyodide}
-numbers = range(1000)
-print("Max:", max(numbers))
-print("Min:", min(numbers))
-print("Sum:", sum(numbers))
-```
-
-```{pyodide}
-l1 = [True, True, False]
-l2 = [False, False, False]
-l3 = [True, True, True]
-print("any(l1)", any(l1))
-print("any(l2)", any(l2))
-print("any(l3)", any(l3))
-print("all(l1)", all(l1))
-print("all(l2)", all(l2))
-print("all(l3)", all(l3))
-```
-
-```{pyodide}
-vowels = "aeiou"
-e = enumerate(vowels)
-print(next(e))
-print(next(e))
-print(next(e))
-print(next(e))
-print(next(e))
-```
-
-```{pyodide}
-vowels = "aeiou"
-numbers = range(1, 6)
-z = zip(vowels, numbers)
-print(next(z))
-print(next(z))
-print(next(z))
-print(next(z))
-print(next(z))
-```
-
-## Data streams and iterators
+## Iterators
 
 There is another concept, the [iterator](https://docs.python.org/3/glossary.html#term-iterator), that its related to the iterable.
 If the iterable was the object that could be iterated over, the iterator is the actual object that does the iteration.
-Iterators are to iterables what bookmarks are to books, we can iterate over the pages of a book, but during a particular iteration we will be at any time in a particular page, and that position should be hold somewhere, for instance by just leaving the book opened at that particular page or by a bookmark.
+Iterators are to iterables what bookmarks are to books, we can iterate over the pages of a book, but during a particular iteration we will be at any time in a particular page, and that position should be held somewhere, for instance by just leaving the book opened at that particular page or by a bookmark.
 You can think of an iterable as a book that can be read many times, while the iterator would be the bookmark that moves along.
 
+You can think of an iterator as an stream of data to be processed that will be seen one at a time.
+
 In technical terms, as we have already shown iterables are objects from which we can create iterators, using the `__iter__` special method, while the iterators will be, once created, the objects that will be used to do the iteration.
-Remember our IntiniteRandomInts iterator implementation, it just has an `__iter__` method, that's the only thing an iterable needs.
 
-### The iterator protocol: iter and next
+### Iterators: iter and next
 
-While the defining characteristic of an iterable is the `__iter__` method, the capability of creating iterators, the crucial trait of the iterable is that we can ask for the next item using the [next](https://docs.python.org/3/library/functions.html#next) function.
+While the defining characteristic of an iterable is the `__iter__` method, the capability of creating iterators, the crucial trait of the iterator is that we can ask for the next item using the [next](https://docs.python.org/3/library/functions.html#next) function.
 Any object capable of returning its members one at a time when we request them using the [next](https://docs.python.org/3/library/functions.html#next) function is an [iterator](https://docs.python.org/3/glossary.html#term-iterator).
 
 We can always create an iterator from an iterable using the [iter](https://docs.python.org/3/library/functions.html#iter) function.
@@ -246,7 +255,12 @@ print(next(one_iterator))
 print(next(one_iterator))
 ```
 
-An iterable will keep yielding items until it is exhausted, and then it will raise a [StopIteration](https://docs.python.org/3/library/exceptions.html#StopIteration) exception.
+If iter(x) works, x is iterable, if next(x) works, x is an iterator.
+
+- Iterable: works with iter(x)
+- Iterator: works with next(x)
+
+An iterator will keep yielding items until it is exhausted, and then it will raise a [StopIteration](https://docs.python.org/3/library/exceptions.html#StopIteration) exception.
 
 ```{pyodide}
 our_iterable = [1, 2]
@@ -258,65 +272,11 @@ print(next(one_iterator))
 print(next(one_iterator))
 ```
 
-So that's the all that there's to it, an iterator will yield one item at a time until all its items are consumed and then raises a StopIteration exception that marks the end of the iteration.
-
-### Streams have no length
-
-You can think of an iterator as an stream of data to be processed.
-You tap into the stream with the next function.
-
-One limitation though is that iterators have no length.
-We have the guarantee that they will always give us something back when we ask with the `next` function, either an item or a StopIteration exception, but the items are given one at a time and we don't know how many of them are.
-
-```{pyodide}
-numbers = iter(range(1_000_000_000))
-print(len(numbers))
-```
-
-### You can materialize them by using list
-
-If you ever try to print an iterator you won't get much.
-
-```{pyodide}
-numbers = iter([1, 2, 3, 4, 5])
-print(numbers)
-```
-
-If for any reason you need to materialize them you can always use [list](https://docs.python.org/3/library/functions.html#func-list).
-
-```{pyodide}
-numbers = iter(range(10))
-print(numbers)
-numbers = list(numbers)
-print(numbers)
-```
-
-If you use NumPy, be aware that you can't directly materialize an iterator into a numpy array and you might get really odd results.
-
-```{pyodide}
-import numpy
-
-numbers = iter([1, 2, 3, 4, 5])
-numbers = numpy.array(numbers)
-print(numbers)
-```
-
-If you want to make sure that you get a numpy array, use [numpy.fromiter](https://numpy.org/doc/stable/reference/generated/numpy.fromiter.html).
-
-```{pyodide}
-import numpy
-
-numbers = iter([1, 2, 3, 4, 5])
-numbers = numpy.fromiter(numbers, dtype=numpy.int8, count=5)
-print(numbers)
-```
-
-Remember that numpy assumes that you have all elements materialized in memory and that you know the number of elements.
-They introduced `fromiter` in version 1.20 to help with the iterator use case, but even in that case it helps the performance to tell numpy how many elements will be in the final array (if you now it).
+So that's the all that there's to it, an iterator will yield one item at a time until all its items are consumed and then will raise a StopIteration exception marking the end of the iteration.
 
 ### file objects are iterators
 
-Python is very fond of iterables and iterators, it uses them for many task.
+Python is very fond of iterables and iterators, it uses them for many tasks.
 For instance, every time that you [open](https://docs.python.org/3/library/functions.html#open) a file you get a [file](https://docs.python.org/3/glossary.html#term-file-object) object that is in iterator.
 
 ```{pyodide}
@@ -331,105 +291,18 @@ print(next(file_like_object))
 print(next(file_like_object))
 ```
 
-Other functions that will create iterators, and the we will study later, are: [map](https://docs.python.org/3/library/functions.html#map), [filter](https://docs.python.org/3/library/functions.html#filter), [zip](https://docs.python.org/3/library/functions.html#zip) and [enumerate](https://docs.python.org/3/library/functions.html#enumerate).
-
-### iterators are iterable, but iterables are not iterators
-
-All iterators are iterable because they implement the `__iter__` special method (usually by returning themselves).
-So, if you pass to the `iter` function an iterator is just returns itself, that's why `for` can work both with iterators and iterables, while if you pass it an iterable it will create a new iterator every time.
-
-```{pyodide}
-numbers = range(5)
-print(iter(numbers) is iter(numbers))
-it = iter(numbers)
-print(iter(it) is it)
-```
-
-However, iterables are usually not iterators because they do not implement the `__next__` special method.
-Remember, the requirement to be an iterable is to be able to create iterators, not to be an iterator yourself.
-So if you try to iterate directly over an iterable you will get a [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError) exception.
-
-```{pyodide}
-numbers = range(5)
-next(numbers)
-```
-
-```{pyodide}
-numbers = [1, 2, 3, 4, 5]
-next(numbers)
-```
-
-### for calls iter
-
-The most usual way of iterating over an iterable is to use a for loop.
-
-```{pyodide}
-
-numbers = [1, 2, 3, 4, 5]
-num_iter = iter(numbers)
-
-for number in num_iter:
-    print(number)
-```
-
-At this point somebody could raise the question: if we have said that iterables create iterators and then iterators are iterated over, how's that `for` can iterate directly over the iterable without requiring an iterator?
-We have'nt used the `iter` function to create an iterator.
-That would be a very good question, if you are not used to these kind of objects they could be quite confusing because it would look like `for` iterates over iterable objects, but that's not really the case, in fact the functions and statements, like the `for` statement, that iterate over things, internally, create an iterator before starting the iteration, and then they iterate over that iterator.
-The `for` loop does *not* iterate over the iterable, it iterates over the **iterator returned by the iterable**.
-
-So what `for` really does is:
-
-1. Calls iter(...) once
-2. Calls next(...) until it catches a StopIteration exception thrown by the iterable.
-
-```
-for i in iterable:
-  ...
-
-really means:
-  1. iterator = iter(iterable)
-  2. repeat:
-    x = next(iterator)
-    execute body
-    until StopIteration
-```
-
-`for` will accept any object that `iter` accepts and the first thing that it does is to create an iterator from that object.
-
-We can show the internal call to `iter` by creating specially chatty iterable and iterator classes.
-(You don't need to worry about how to implement these classes, we will study a much easier way of implementing our own custom iterators.)
-
-
-```{pyodide}
-class TracedIterable:
-    def __iter__(self):
-        print("__iter__ called")
-        return TracedIterator()
-
-class TracedIterator:
-    def __init__(self):
-        self.i = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        print("__next__ called")
-        if self.i >= 3:
-            print('Raising stop iteration')
-            raise StopIteration
-        self.i += 1
-        return self.i
-
-for x in TracedIterable():
-    print("value:", x)
-```
-
-All functions that can iterate over iterables like: [zip](https://docs.python.org/3/library/functions.html#zip), [sum](https://docs.python.org/3/library/functions.html#sum), [max](https://docs.python.org/3/library/functions.html#max), [min](https://docs.python.org/3/library/functions.html#min), [any](https://docs.python.org/3/library/functions.html#any), [all](https://docs.python.org/3/library/functions.html#all), [enumerate](https://docs.python.org/3/library/functions.html#enumerate),[map](https://docs.python.org/3/library/functions.html#map), etc., rely on iter() + next() + StopIteration trick.
-
 ### Iterators are consumed, iterables are not
 
-As we have explained an [iterator](https://docs.python.org/3/glossary.html#term-iterator) is an object that represents an stream of data, it yields item after item until it is exhausted.
+Check out the next cell and predict the expected result.
+Now, run the cell, and explain the result of the second sum (this is the biggest iterator [Gotcha](https://en.wikipedia.org/wiki/Gotcha_(programming)).)
+
+```{pyodide}
+xs = map(int, ["1","2","3"])
+print("sum1", sum(xs))
+print("sum2", sum(xs))
+```
+
+As we have explained an [iterator](https://docs.python.org/3/glossary.html#term-iterator) is an object that represents an stream of data, it yields item after item until it is consumed.
 Iterators generate items until they are exhausted, and then they are exhausted for good.
 
 ```{pyodide}
@@ -496,10 +369,295 @@ print(next(iter2))
 print(next(iter1))
 ```
 
-## itertools and more-itertools
+### iterators are iterable, but iterables are not iterators
+
+All iterators are iterable because they implement the `__iter__` special method (usually by returning themselves).
+So, if you pass to the `iter` function an iterator it just returns itself, that's why `for` can work both with iterators and iterables, while if you pass it an iterable it will create a new iterator every time.
+
+```{pyodide}
+numbers = range(5)
+print(iter(numbers) is iter(numbers))
+it = iter(numbers)
+print(iter(it) is it)
+```
+
+However, iterables are usually not iterators because they do not implement the `__next__` special method.
+Remember, the requirement to be an iterable is to be able to create iterators, not to be an iterator yourself.
+So if you try to use the next function directly on an iterable you will get a [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError) exception.
+
+```{pyodide}
+numbers = range(5)
+next(numbers)
+```
+
+```{pyodide}
+numbers = [1, 2, 3, 4, 5]
+next(numbers)
+```
+
+### iterators have no length
+
+One limitation is that iterators usually have no length. (Some iterators might have a __length_hint__, but that's not the usual case and the length is not guaranteed).
+
+What we have is the guarantee that they will always give us something back when we ask with the `next` function, either an item or a StopIteration exception, but the items are given one at a time and we usually don't know how many of them are.
+
+```{pyodide}
+numbers = iter(range(1_000_000_000))
+print(len(numbers))
+```
+
+### You can materialize them by using list
+
+If you ever try to print an iterator you won't get much.
+
+```{pyodide}
+numbers = iter([1, 2, 3, 4, 5])
+print(numbers)
+```
+
+If for any reason you need to materialize them you can always use [list](https://docs.python.org/3/library/functions.html#func-list) or [tuple](https://docs.python.org/3/library/functions.html#func-tuple).
+
+```{pyodide}
+numbers = iter(range(10))
+print(numbers)
+numbers = list(numbers)
+print(numbers)
+```
+
+If you use NumPy, be aware that you can't directly materialize an iterator into a numpy array and you might get really odd results.
+
+```{pyodide}
+import numpy
+
+numbers = iter([1, 2, 3, 4, 5])
+numbers = numpy.array(numbers)
+print(numbers)
+```
+
+You could get the correct result by transforming the iterator into a list first.
+
+```{pyodide}
+import numpy
+
+numbers = iter([1, 2, 3, 4, 5])
+numbers = numpy.array(list(numbers))
+print(numbers)
+```
+
+Be aware that this solution will work for small lists, but if the number of items is large the list will take much memory. As an alternative numpy has a safer way that materializes the iterator directly into a numpy array: [numpy.fromiter](https://numpy.org/doc/stable/reference/generated/numpy.fromiter.html).
+
+```{pyodide}
+import numpy
+
+numbers = iter([1, 2, 3, 4, 5])
+numbers = numpy.fromiter(numbers, dtype=numpy.int8, count=5)
+print(numbers)
+```
+
+Remember that numpy assumes that you have all elements materialized in memory and that you know the number of elements.
+`fromiter` will have a better performance if you tell it how many elements will be in the final array , using the count argument (if you now it).
+
+## More about the iterables and iterators
+
+### Python is fond of iterables
+
+Many Python classes are iterable, like list, [tuple](https://docs.python.org/3/tutorial/datastructures.html#tuples-and-sequences), [set](https://docs.python.org/3/tutorial/datastructures.html#sets), and [frozenset](https://docs.python.org/3/library/stdtypes.html#frozenset), or range.
+
+Dictionaries are also iterable, by default you will get their keys, but you can also iterate over its values, and items.
+
+```{pyodide}
+d = {'name': 'Arthur', 'surname': 'Dent'}
+print(list(d))
+print(d.keys())
+print(d.values())
+print(d.items())
+```
+
+Strings are also iterable over their characters.
+
+```{pyodide}
+vowels = 'aeiou'
+print(list(vowels))
+```
+
+### How `for` works
+
+The most usual way of iterating over an iterable is to use it in a for loop.
+
+```{pyodide}
+numbers = [1, 2, 3, 4, 5]
+num_iter = iter(numbers)
+
+for number in num_iter:
+    print(number)
+```
+
+At this point somebody could raise the question: if we have said that iterables create iterators and then iterators are iterated over, how's that `for` can iterate directly over the iterable without requiring an iterator?
+That would be a very good question, if you are not used to these kind of objects they could be quite confusing because it would look like `for` iterates over iterable objects, but that's not really the case, in fact the functions and statements, like the `for` statement, that iterate over things, internally, create an iterator before starting the iteration, and then they iterate over that iterator.
+The `for` loop does *not* iterate over the iterable, it iterates over the **iterator returned by the iterable**.
+
+So what `for` really does is:
+
+1. Calls iter(...) once
+2. Calls next(...) until it catches a StopIteration exception thrown by the iterable.
+
+```
+for i in iterable:
+  ...
+
+really means:
+  1. iterator = iter(iterable)
+  2. repeat:
+    x = next(iterator)
+    execute body
+    until StopIteration
+```
+
+We can reproduce the `for` behavior using `iter` and `while`.
+
+```{pyodide}
+it = iter([1,2,3])
+while True:
+    try:
+        print(next(it))
+    except StopIteration:
+        break
+```
+
+`for` will accept any object that `iter` accepts and the first thing that it does is to create an iterator from that object.
+
+We can show the internal call to `iter` by creating specially chatty iterable and iterator classes.
+(You don't need to worry about how to implement these classes, we will study a much easier way of implementing our own custom iterators by using generators.)
+
+
+```{pyodide}
+class TracedIterable:
+    def __iter__(self):
+        print("__iter__ called")
+        return TracedIterator()
+
+class TracedIterator:
+    def __init__(self):
+        self.i = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        print("__next__ called")
+        if self.i >= 3:
+            print('Raising stop iteration')
+            raise StopIteration
+        self.i += 1
+        return self.i
+
+for x in TracedIterable():
+    print("value:", x)
+```
+
+### The iterable users
+
+`for` is not the only iterable user the uses the iterator trick, many other Python functions do, like: [zip](https://docs.python.org/3/library/functions.html#zip), [sum](https://docs.python.org/3/library/functions.html#sum), [max](https://docs.python.org/3/library/functions.html#max), [min](https://docs.python.org/3/library/functions.html#min), [any](https://docs.python.org/3/library/functions.html#any), [all](https://docs.python.org/3/library/functions.html#all), [enumerate](https://docs.python.org/3/library/functions.html#enumerate),[map](https://docs.python.org/3/library/functions.html#map), [list](https://docs.python.org/3/library/functions.html#func-list), etc.
+
+```{pyodide}
+numbers = range(1000)
+print("Max:", max(numbers))
+print("Min:", min(numbers))
+print("Sum:", sum(numbers))
+```
+
+```{pyodide}
+l1 = [True, True, False]
+l2 = [False, False, False]
+l3 = [True, True, True]
+print("any(l1)", any(l1))
+print("any(l2)", any(l2))
+print("any(l3)", any(l3))
+print("all(l1)", all(l1))
+print("all(l2)", all(l2))
+print("all(l3)", all(l3))
+```
+
+```{pyodide}
+vowels = "aeiou"
+e = enumerate(vowels)
+print(next(e))
+print(next(e))
+print(next(e))
+print(next(e))
+print(next(e))
+```
+
+```{pyodide}
+vowels = "aeiou"
+numbers = range(1, 6)
+z = zip(vowels, numbers)
+print(next(z))
+print(next(z))
+print(next(z))
+print(next(z))
+print(next(z))
+```
+
+### itertools and more-itertools
 
 Once you start using iterables and iterators you should take a look at the [itertools](https://docs.python.org/3/library/itertools.html) standard library module.
 In there you will find many tools to get the most of these tools.
+
+### Iterables don't need to be sequences
+
+Iterables just need to be iterable, nothing else.
+Lists or ranges have extra capabilities that go further than the iterable requirement, to be able to be iterated over, but these are not required.
+For instance, lists have [random access](https://en.wikipedia.org/wiki/Random_access), we can ask for any of its members at any time.
+
+```{pyodide}
+numbers = [1, 2, 3, 4, 5]
+print(numbers[3])
+print(numbers[0])
+print(numbers[4])
+```
+
+But that's not a requirement to be an iterable.
+For instance, [sets](https://docs.python.org/3/tutorial/datastructures.html#sets) have no random access, but they are iterable.
+
+```{pyodide}
+numbers = {1, 2, 3, 4, 5}
+print(numbers[3])
+
+for i in numbers:
+    print(i)
+```
+
+Also, iterables do not need to have a stable order.
+
+```{pyodide}
+numbers1 = {1, 2, 3, 4, 5}
+numbers2 = {5, 2, 3, 1, 4}
+print(numbers1 == numbers2)
+```
+
+Iterables do not even need to have a finite number of elements or even length.
+Let's create an iterable that produces random integers for ever.
+
+```{pyodide}
+import random
+
+class InfiniteRandomInts:
+    def __iter__(self):
+        while True:
+            yield random.randint(0, 9)
+
+rng = InfiniteRandomInts()
+
+for x in rng:
+    print(x)
+    if x == 7:
+        break
+```
+
+`InfiniteRandomInts` is iterable because we have implemented the [`__iter__`](https://docs.python.org/3/reference/datamodel.html#object.__iter__) magic method, and that's all an iterable needs to be iterable.
+
+If you ever need to represent more constrained behaviors, like the behavior of an object with stable order, random access and a length you have other [protocols](https://realpython.com/python-protocol/) available, like the [sequence](https://docs.python.org/3/glossary.html#term-sequence).
 
 ## Other resources
 
