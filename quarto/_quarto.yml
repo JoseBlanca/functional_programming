@@ -1,0 +1,30 @@
+project:
+  type: website
+
+website:
+  page-navigation: true
+  repo-url: https://github.com/JoseBlanca/iterables_and_iterators
+  repo-actions: [source, issue]
+  title: "Iterables and iterators tutorial"
+  sidebar:
+    style: "docked"
+    search: true
+    contents:
+      - text: "Home"
+        href: index.qmd
+      - text: "Iterators and iterables"
+        href: iterators_and_iterables.qmd
+      - text: "Generators"
+        href: iterators_and_iterables.qmd
+      - text: "Exercises"
+        href: exercises.qmd
+    tools:
+      - icon: github
+        menu:
+          - text: Source Code
+            href:  https://github.com/JoseBlanca/iterables_and_iterators
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true

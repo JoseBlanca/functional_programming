@@ -1,0 +1,31 @@
+---
+title: "Iterables and iterators"
+format: live-html
+---
+
+# Iterables and iterators
+
+Python leans heavily on **iteration**: a simple, efficient way to process data one element at a time.  
+That’s why so many everyday objects—like `list`, `dict`, `str`, and files [iterable](https://docs.python.org/3/glossary.html#term-iterable).
+
+This tutorial explains:
+
+- what an [iterable](https://docs.python.org/3/glossary.html#term-iterable) is, and how it differs from an [iterator](https://docs.python.org/3/glossary.html#term-iterator)
+- how `for` loops work under the hood (`iter()` and `next()`)
+- why iterators are essential for working with **large datasets** efficiently
+- common pitfalls (like “why did my iterator become empty?”) and how to avoid them
+
+You can run the code snippets and solve the exercises in your favorite code editor, but the tutorial is fully usable online, so you don’t need to install Python to follow it.
+
+If you work with data (tables, logs, VCF/FASTQ files, streams…), understanding iterables and iterators will help you write code that is cleaner and more memory-efficient.
+
+## Contents
+
+1. **[Iterables and iterators](iterators_and_iterables.html)**  
+   Core concepts, the iteration protocol, and how `for` really works.
+
+2. **[Generators](generators.html)**  
+   Creating iterators with `yield`, infinite sequences, and streaming patterns.
+
+3. **[Exercises](exercises.html)**  
+   Hands-on practice to reinforce the concepts and spot common mistakes.
