@@ -1,0 +1,621 @@
+---
+title: "Iterator exercises"
+format:
+  live-html
+jupyter: python3
+---
+
+## Iterable or not?
+
+For each object below, answer:
+
+Is it an iterable, an iterator, both, or neither?
+Can it be used in a for loop? Will it work with next?
+
+```{pyodide}
+#| exercise: ex_iterable_or_not
+a = [1, 2, 3]
+b = range(10)
+c = iter([1, 2, 3])
+d = {"A": 1, "B": 2}
+e = (x*x for x in range(5))
+f = 42
+```
+
+::: { .solution exercise="ex_iterable_or_not" }
+```{pyodide}
+a = [1, 2, 3]
+b = range(10)
+c = iter([1, 2, 3])
+d = {"A": 1, "B": 2}
+e = (x*x for x in range(5))
+f = 42
+
+for item in [a, b, c, d, e, f]:
+    print("The object:", item)
+    try:
+        iter(item)
+        print("Is an iterable")
+    except TypeError:
+        print("Is not an iterable")
+    try:
+        next(item)
+        print("Is an iterator")
+    except TypeError:
+        print("Is not an iterator")
+```
+:::
+
+
+## Reusable or not?
+
+Before running the code, predict the output, write down what you think will be printed.
+
+```{pyodide}
+#| exercise: ex_predict_exhaustion
+xs = [1, 2, 3]
+print("x1:", sum(xs))
+print("x2:", sum(xs))
+
+ys = iter([1, 2, 3])
+print("y1:", sum(ys))
+print("y2:", sum(ys))
+
+numbers = range(5)
+for x in numbers:
+    print(x)
+print("Sum numbers 1:", sum(numbers))
+
+numbers = iter(range(5))
+for x in numbers:
+    print(x)
+print("Sum numbers 2:", sum(numbers))
+```
+
+## Why these two pieces of code behave in a different way?
+
+What will this code print and why?
+
+```{pyodide}
+numbers = range(4)
+iter1 = iter(numbers)
+iter2 = iter(iter1)
+print(next(iter1))
+print(next(iter2))
+print(next(iter1))
+print(next(iter2))
+print(list(iter1))
+print(list(iter2))
+```
+
+```{pyodide}
+numbers = range(4)
+iter1 = iter(numbers)
+iter2 = iter(numbers)
+print(next(iter1))
+print(next(iter2))
+print(next(iter1))
+print(next(iter2))
+print(list(iter1))
+print(list(iter2))
+```
+
+## Even numbers
+
+Write a generator function called even_numbers(n) that yields even numbers from 0 up to n (inclusive).
+
+```{pyodide}
+#| exercise: ex_even_generator
+def generate_even_numbers(max_n):
+    ...
+
+assert list(generate_even_numbers(5)) == [1, 3, 5]
+```
+::: { .solution exercise="ex_even_generator" }
+```{pyodide}
+def generate_even_numbers(max_n):
+    for i in range(1, max_n + 1):
+        if i % 2:
+            yield i
+
+assert list(generate_even_numbers(5)) == [1, 3, 5]
+```
+:::
+
+## The fibonacci generator
+
+Create an infinite [fibonacci](https://en.wikipedia.org/wiki/Fibonacci_sequence) sequence generator.
+
+```{pyodide}
+#| exercise: ex_fibonacci
+import itertools
+
+def fibonacci():
+    a, b = 0, 1
+    ...
+
+print(list(itertools.islice(10, fibonacci())))
+```
+::: { .solution exercise="ex_fibonacci" }
+```{pyodide}
+import itertools
+
+def fibonacci():
+    a, b = 0, 1
+    while True:
+        yield a
+        a = b
+        b = a + b
+
+print(list(itertools.islice(fibonacci(), 10,)))
+```
+:::
+
+## DNA sequence generator
+
+Create a generator of random DNA sequences.
+
+```{pyodide}
+#| exercise: ex_dna_seq_generator
+import random
+NUCLEOTIDES = 'ACTG'
+
+def generate_random_dna_seqs(length, num_seqs):
+    ...
+
+for seq in generate_random_dna_seqs(5, 10):
+    print(seq)
+```
+::: { .solution exercise="ex_dna_seq_generator" }
+```{pyodide}
+import random
+NUCLEOTIDES = 'ACTG'
+
+def generate_random_dna_seqs(length, num_seqs):
+    for i in range(num_seqs):
+        yield ''.join(random.choices(NUCLEOTIDES, k=length))
+
+for seq in generate_random_dna_seqs(10, 5):
+    print(seq)
+```
+:::
+
+## List vs generator
+
+Rewrite this code using a generator expression:
+
+```{pyodide}
+#| exercise: ex_squares_generator
+squares = []
+for x in range(1, 1001):
+    squares.append(x*x)
+print(sum(squares))
+```
+::: { .solution exercise="ex_squares_generator" }
+```{pyodide}
+squares = (x*x for x in range(1, 1001))
+print(sum(squares))
+```
+:::
+
+## Use zip to pair lists
+
+Use the zip function to pair the values in two lists, and using a for loop print the name of the sample along with its gc_content.
+
+```{pyodide}
+#| exercise: ex_zip1
+samples = ["S1", "S2", "S3"]
+gc_content = [0.45, 0.52, 0.38]
+```
+::: { .solution exercise="ex_zip1" }
+```{pyodide}
+samples = ["S1", "S2", "S3"]
+gc_content = [0.45, 0.52, 0.38]
+
+for sample, gc in zip(samples, gc_content):
+    print(sample, gc)
+```
+:::
+
+Using zip and dict create a dictionary from the same two lists with the names of the samples as keys.
+```{pyodide}
+#| exercise: ex_zip2
+samples = ["S1", "S2", "S3"]
+gc_content = [0.45, 0.52, 0.38]
+```
+::: { .solution exercise="ex_zip2" }
+```{pyodide}
+samples = ["S1", "S2", "S3"]
+gc_content = [0.45, 0.52, 0.38]
+
+gcs = dict(zip(samples, gc_content))
+print(gcs)
+```
+:::
+
+## Divide the VCF parser
+
+We are parsing a VCF file and we want to get the variants and for each one we want a numeric index.
+This is our first attempt:
+
+```{pyodide}
+#| exercise: ex_divide_vcf_parser
+from io import StringIO
+vcf_lines = """##fileformat=VCFv4.2
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO,
+1\t100\t.\tA\tG\t.\tPASS\t.
+1\t200\t.\tT\tC\t.\tPASS\t.
+2\t150\t.\tG\tA\t.\tPASS\t.
+"""
+
+def read_and_index_variants(vcf_file):
+    variants = []
+    i = 0
+    for line in vcf_file:
+        if line.startswith("#"):
+            continue
+        fields = line.rstrip().split("\t")
+        chrom = fields[0]
+        pos = int(fields[1])
+
+        variants.append((i, (chrom, pos)))
+        i += 1
+
+    return variants
+
+vcf_file = StringIO(vcf_lines)
+variants = read_and_index_variants(vcf_file)
+print(variants)
+```
+::: { .solution exercise="ex_divide_vcf_parser" }
+```{pyodide}
+from io import StringIO
+vcf_lines = """##fileformat=VCFv4.2
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO,
+1\t100\t.\tA\tG\t.\tPASS\t.
+1\t200\t.\tT\tC\t.\tPASS\t.
+2\t150\t.\tG\tA\t.\tPASS\t.
+"""
+
+def read_variants(vcf_file):
+    for line in vcf_file:
+        if line.startswith("#"):
+            continue
+        fields = line.rstrip().split("\t")
+        chrom = fields[0]
+        pos = int(fields[1])
+        yield (chrom, pos)
+
+vcf_file = StringIO(vcf_lines)
+variants = read_variants(vcf_file)
+indexed_variants = enumerate(variants)
+print(list(indexed_variants))
+```
+:::
+
+This code works but it has several issues.
+
+- It is creating a list in memory with all the variants.
+- The read_and_index_variants is doing two tasks: parsing the variants and indexing them.
+
+It would be better to create a generator that only parses the vcf file and then to index the variants outside that generator. Moreover, by using a generator we would avoid using too much memory.
+
+## Count the number of variants per chromosome
+
+Use the parser created in the last exercise count the number of variants per chromosome.
+
+```{pyodide}
+#| exercise: vars_per_chrom
+from io import StringIO
+vcf_lines = """##fileformat=VCFv4.2
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO,
+1\t100\t.\tA\tG\t.\tPASS\t.
+1\t200\t.\tT\tC\t.\tPASS\t.
+2\t150\t.\tG\tA\t.\tPASS\t.
+"""
+
+def read_variants(vcf_file):
+    for line in vcf_file:
+        if line.startswith("#"):
+            continue
+        fields = line.rstrip().split("\t")
+        chrom = fields[0]
+        pos = int(fields[1])
+        yield (chrom, pos)
+
+vcf_file = StringIO(vcf_lines)
+variants = read_variants(vcf_file)
+```
+::: { .solution exercise="vars_per_chrom" }
+```{pyodide}
+from io import StringIO
+from collections import Counter
+
+vcf_lines = """##fileformat=VCFv4.2
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO,
+1\t100\t.\tA\tG\t.\tPASS\t.
+1\t200\t.\tT\tC\t.\tPASS\t.
+2\t150\t.\tG\tA\t.\tPASS\t.
+"""
+
+def read_variants(vcf_file):
+    for line in vcf_file:
+        if line.startswith("#"):
+            continue
+        fields = line.rstrip().split("\t")
+        chrom = fields[0]
+        pos = int(fields[1])
+        yield (chrom, pos)
+
+vcf_file = StringIO(vcf_lines)
+
+num_vars_per_chrom = Counter(variant[0] for variant in read_variants(vcf_file))
+print(num_vars_per_chrom)
+```
+:::
+
+## Fix the bug
+
+The following code is supposed to compute the mean of some values. What is wrong with this code? Fix it without changing the input data.
+
+```{pyodide}
+#| exercise: ex_fix_len_bug
+values = map(float, ["1.0", "2.0", "3.0", "4.0"])
+mean = sum(values) / len(list(values))
+print(mean)
+```
+
+::: { .solution exercise="ex_fix_len_bug" }
+```{pyodide}
+values = map(float, ["1.0", "2.0", "3.0", "4.0"])
+values = list(values)
+mean = sum(values) / len(values)
+print(mean)
+
+# Even better, we could create a function to calculate the mean without ever creating a list
+def calc_mean(iterable):
+    total = 0.0
+    count = 0
+    for x in iterable:
+        total += x
+        count += 1
+    return total / count
+
+values = map(float, ["1.0", "2.0", "3.0", "4.0"])
+print(calc_mean(values))
+
+# we could also due it using a map reduce approach
+# in this case we will be reducing the tuple (sum, count)
+from functools import reduce
+
+values = map(float, ["1.0", "2.0", "3.0", "4.0"])
+
+total, count = reduce(
+    lambda acc, x: (acc[0] + x, acc[1] + 1),
+    values,
+    (0.0, 0),
+)
+
+mean = total / count
+print(mean)
+```
+:::
+
+## Write a fasta file parser that yields one sequence at a time
+
+```{pyodide}
+#| exercise: fasta_parser
+from io import StringIO
+fasta_lines = """>seq1
+ACTGTGCGTCTAGCTAGCTG
+>seq2
+CTAGCTAGTGCTGATGCTGAT
+CGTACTAGTCTA
+"""
+
+def parse_fasta(file):
+  ...
+
+file = StringIO(fasta_lines)
+seqs = list(parse_fasta(file))
+print(seqs)
+```
+::: { .solution exercise="fasta_parser" }
+```{pyodide}
+from io import StringIO
+fasta_lines = """>seq1
+ACTGTGCGTCTAGCTAGCTG
+>seq2
+CTAGCTAGTGCTGATGCTGAT
+CGTACTAGTCTA
+"""
+
+def parse_fasta(file):
+  seq = None
+  for line in file:
+    line = line.strip()
+    if not line:
+      continue
+    if line.startswith('>'):
+      if seq:
+        yield tuple(seq)
+      name = line.split()[0][1:]
+      seq = [name, ""]
+    else:
+      seq[1] += line
+  if seq:
+    yield tuple(seq)
+
+file = StringIO(fasta_lines)
+seqs = list(parse_fasta(file))
+print(seqs)
+```
+:::
+
+## Filter short sequences and calc GC content
+
+Filter the sequences generated by the fasta parser, remove the ones with the length below a threshold, then calculate the mean GC content of the longer ones.
+
+```{pyodide}
+#| exercise: seqs_filter_and_gc
+from io import StringIO
+fasta_lines = """>seq1
+ACTGTGCGTCTAGCTAGCTG
+>seq2
+CTAGCTAGTGCTGATGCTGAT
+CGTACTAGTCTA
+>seq3
+AAAAAA
+>seq4
+TTTTT
+"""
+
+def parse_fasta(file):
+  seq = None
+  for line in file:
+    line = line.strip()
+    if not line:
+      continue
+    if line.startswith('>'):
+      if seq:
+        yield tuple(seq)
+      name = line.split()[0][1:]
+      seq = [name, ""]
+    else:
+      seq[1] += line
+  if seq:
+    yield tuple(seq)
+
+file = StringIO(fasta_lines)
+seqs = parse_fasta(file)
+```
+::: { .solution exercise="seqs_filter_and_gc" }
+```{pyodide}
+from io import StringIO
+fasta_lines = """>seq1
+ACTGTGCGTCTAGCTAGCTG
+>seq2
+CTAGCTAGTGCTGATGCTGAT
+CGTACTAGTCTA
+>seq3
+AAAAAA
+>seq4
+TTTTT
+"""
+
+def parse_fasta(file):
+  seq = None
+  for line in file:
+    line = line.strip()
+    if not line:
+      continue
+    if line.startswith('>'):
+      if seq:
+        yield tuple(seq)
+      name = line.split()[0][1:]
+      seq = [name, ""]
+    else:
+      seq[1] += line
+  if seq:
+    yield tuple(seq)
+
+def calc_gc(seq):
+    seq = seq[1].upper()
+    return (seq.count('G') + seq.count('C')) / len(seq)
+
+def calc_mean(iterable):
+    total = 0.0
+    count = 0
+    for x in iterable:
+        total += x
+        count += 1
+    return total / count
+
+file = StringIO(fasta_lines)
+seqs = parse_fasta(file)
+min_len = 10
+gcs = (calc_gc(seq) for seq in seqs if len(seq[1]) >= min_len)
+print(calc_mean(gcs))
+```
+:::
+
+## Sliding Window (The k-mer Generator)
+
+In bioinformatics, we often analyze "k-mers" (subsequences of length k). Write a generator function generate_kmers(sequence, k) that takes a DNA string and an integer k and yields every possible k-mer as you slide along the sequence.
+Using to analyze a whole fasta file and print the final kmer count.
+
+```{pyodide}
+#| exercise: ex_kmer_counter
+from io import StringIO
+fasta_lines = """>seq1
+ACTGTGCGTCTAGCTAGCTG
+>seq2
+CTAGCTAGTGCTGATGCTGAT
+CGTACTAGTCTA
+>seq3
+CAGTCTGATCTAGCGT
+"""
+
+def parse_fasta(file):
+  seq = None
+  for line in file:
+    line = line.strip()
+    if not line:
+      continue
+    if line.startswith('>'):
+      if seq:
+        yield tuple(seq)
+      name = line.split()[0][1:]
+      seq = [name, ""]
+    else:
+      seq[1] += line
+  if seq:
+    yield tuple(seq)
+
+file = StringIO(fasta_lines)
+seqs = parse_fasta(file)
+```
+::: { .solution exercise="ex_kmer_counter" }
+from io import StringIO
+from collections import Counter
+
+fasta_lines = """>seq1
+ACTGTGCGTCTAGCTAGCTG
+>seq2
+CTAGCTAGTGCTGATGCTGAT
+CGTACTAGTCTA
+>seq3
+CAGTCTGATCTAGCGT
+"""
+
+def parse_fasta(file):
+  seq = None
+  for line in file:
+    line = line.strip()
+    if not line:
+      continue
+    if line.startswith('>'):
+      if seq:
+        yield tuple(seq)
+      name = line.split()[0][1:]
+      seq = [name, ""]
+    else:
+      seq[1] += line
+  if seq:
+    yield tuple(seq)
+
+def generate_kmers(seq, kmer_len):
+  seq = seq[1]
+  return (
+    seq[i : i + kmer_len]
+    for i in range(len(seq) - kmer_len + 1)
+  )
+  
+
+kmer_len = 5
+file = StringIO(fasta_lines)
+seqs = parse_fasta(file)
+kmers = (kmer for seq in seqs for kmer in generate_kmers(seq, kmer_len))
+kmer_counts = Counter(kmers)
+print(kmer_counts)
+:::
