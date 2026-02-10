@@ -302,6 +302,19 @@ print("sum1", sum(xs))
 print("sum2", sum(xs))
 ```
 
+This kind of errors are common when dealing with files:
+
+```{python}
+# | eval: false
+f = open("variants.vcf")
+# First pass: count lines
+count = sum(1 for line in f)
+
+# Second pass: try to process data
+for line in f:
+    print(line)  # WARNING: This will do nothing! The iterator is empty.
+```
+
 As we have explained an [iterator](https://docs.python.org/3/glossary.html#term-iterator) is an object that represents an stream of data, it yields item after item until it is consumed.
 Iterators generate items until they are exhausted, and then they are exhausted for good.
 
@@ -642,10 +655,21 @@ Let's create an iterable that produces random integers for ever.
 ```{pyodide}
 import random
 
-class InfiniteRandomInts:
+class InfiniteRandomIterator:
+    """The actual iterator that performs the work."""
+    def __next__(self):
+        # This is called every time the for loop asks for a new value
+        return random.randint(0, 9)
+
     def __iter__(self):
-        while True:
-            yield random.randint(0, 9)
+        # Iterators are required to return themselves when iter() is called
+        return self
+
+class InfiniteRandomInts:
+    """The iterable that can be used in a for loop."""
+    def __iter__(self):
+        # Every time we start a for loop, we create a fresh iterator
+        return InfiniteRandomIterator()
 
 rng = InfiniteRandomInts()
 
