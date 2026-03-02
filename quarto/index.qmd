@@ -3,8 +3,6 @@ title: "Iterables and iterators"
 format: live-html
 ---
 
-# Iterables and iterators
-
 Python leans heavily on **iteration**: a simple, efficient way to process data one element at a time.  
 That’s why so many everyday objects—like `list`, `dict`, `str`, and files [iterable](https://docs.python.org/3/glossary.html#term-iterable).
 

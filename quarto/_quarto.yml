@@ -15,7 +15,7 @@ website:
       - text: "Iterators and iterables"
         href: iterators_and_iterables.qmd
       - text: "Generators"
-        href: iterators_and_iterables.qmd
+        href: generators.qmd
       - text: "Exercises"
         href: exercises.qmd
     tools:
